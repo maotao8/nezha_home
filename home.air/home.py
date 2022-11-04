@@ -16,16 +16,145 @@
 # IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT
 # OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-__author__ = "maotao8"
-
 import os
 import sys
 import logging
+import configparser
+import platform
 
 from airtest.core.api import *
 
-logger = logging.getLogger("airtest")
-logger.setLevel(logging.DEBUG)
+__author__ = "maotao8"
+
+TASK_CONF_FILE = "task.conf"
+MAS_VER = "0.1.0.0"
+TASK_NAME = "home"
+if platform.system() == 'Windows':
+    TASK_EXEC = 'home.exe'
+else:
+    TASK_EXEC = 'home'
+
+logger = logging.getLogger(TASK_NAME)
+#logger.setLevel(logging.DEBUG)
+#logger.warning('__name__ : %s', __name__)
+logger.warning(platform.system())
+
+def write_task_conf(fileName,config=None):
+    if not config:
+        cfg = configparser.ConfigParser()
+        cfg['task'] = {
+            'name':TASK_NAME,
+            'exec':TASK_EXEC,
+            'enable':'yes',
+            'mas_version':MAS_VER,
+            'run_timestamp':'0',
+            'start_time':'01:02:03',
+            'run_seconds':'10',
+            'wait_seconds':'3'
+            }
+    else:
+        cfg=config
+    with open(fileName, 'w') as configfile:
+        cfg.write(configfile)
+    return cfg
+
+
+def read_task_conf(fileName):
+    config = configparser.ConfigParser()
+    config.read(fileName)
+    write_to_file = False
+
+    # verify [task] section
+    if not config.has_section("task"):
+        config.add_section('task')
+        write_to_file = True
+    if not config.has_option('task', 'name'):
+        config.set('task', 'name', TASK_NAME)
+        write_to_file = True
+    if not config.has_option('task', 'exec'):
+        config.set('task', 'exec', TASK_EXEC)
+        write_to_file = True
+    if not config.has_option('task', 'enable'):
+        config.set('task', 'enable', 'yes')
+        write_to_file = True
+    if not config.has_option('task', 'mas_version'):
+        config.set('task', 'mas_version', MAS_VER)
+        write_to_file = True
+    if not config.has_option('task', 'run_timestamp'):
+        config.set('task', 'run_timestamp', '0')
+        write_to_file = True
+    if not config.has_option('task', 'start_time'):
+        config.set('task', 'start_time', '01:02:03')
+        write_to_file = True
+    if not config.has_option('task', 'run_seconds'):
+        config.set('task', 'run_seconds', '10')
+        write_to_file = True
+    if not config.has_option('task', 'wait_seconds'):
+        config.set('task', 'wait_seconds', '3')
+        write_to_file = True
+    if write_to_file:
+        write_task_conf(fileName, config)
+    return config
+
+
+def verify_task_conf(fileName):
+    config = configparser.ConfigParser()
+    config.read(fileName)
+    if not config.has_section("task"):
+        return None
+    if not config.has_option("task", "name"):
+        return None
+    if not config.has_option("task", "exec"):
+        return None
+    if not config.has_option("task", "enable"):
+        return None
+    if not config.has_option("task", "mas_version"):
+        return None
+    if not config.has_option("task", "run_timestamp"):
+        return None
+    if not config.has_option("task", "start_time"):
+        return None
+    if not config.has_option("task", "run_seconds"):
+        return None
+    if not config.has_option("task", "wait_seconds"):
+        return None
+
+    mas_version = config.get("task", "mas_version")
+    name = config.get("task", "name")
+    exec = config.get("task", "exec")
+    en = config.get("task", "enable")
+    run_timestamp = config.get("task", "run_timestamp")
+    start_time = config.get("task", "start_time")
+    run_seconds = config.get("task", "run_seconds")
+    wait_seconds = config.get("task", "wait_seconds")
+
+    return {
+        'mas_version':mas_version,
+        'name':name,
+        'exec':exec,
+        'enable':en,
+        'run_timestamp':run_timestamp,
+        'start_time':start_time,
+        'run_seconds':run_seconds,
+        'wait_seconds':wait_seconds
+        }
+
+
+def update_task_conf(fileName, config):
+    run_timestamp = time.time().__int__()
+    last_timestamp = config.getint('task', 'run_timestamp')
+    if last_timestamp > run_timestamp:
+        return config
+
+    task = verify_task_conf(fileName)
+    if not task:
+        cfg = write_task_conf(fileName)
+    else:
+        cfg = configparser.ConfigParser()
+        cfg['task'] = task
+        write_task_conf(fileName, cfg)
+    return cfg
+
 
 def main(args=None):
     if not args:
@@ -54,13 +183,22 @@ def main(args=None):
         height = G.DEVICE.display_info['height']
         width = G.DEVICE.display_info['width']
 
-    print("m8tdbg +++++++++++++++++++++++++++++++++")
-    print("m8tdbg orientation %d width %d height %d" % (orientation, width, height))
-    print("m8tdbg =================================")
-    print("go back HOME!")
-    
+    logger.warning("m8tdbg +++++++++++++++++++++++++++++++++")
+    logger.warning("m8tdbg orientation %d width %d height %d" % (orientation, width, height))
+    logger.warning("m8tdbg =================================")
+    logger.warning("go back HOME!")
+
     home()
     return True
 
+
 if __name__ == '__main__':
+    root_dir = os.path.dirname(os.path.abspath(__file__))
+    conf_file = os.path.join(root_dir, TASK_CONF_FILE)
+    if not os.path.exists(conf_file):
+        write_task_conf(conf_file)
+
+    config = read_task_conf(conf_file)
+    config = update_task_conf(conf_file, config)
+
     main(sys.argv)
