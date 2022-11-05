@@ -17,6 +17,7 @@
 # OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 import os
+import re
 import sys
 import logging
 import configparser
@@ -158,17 +159,38 @@ def update_task_conf(fileName, config):
 
 def main(args=None):
     if not args:
-        if len(sys.argv) < 2:
-            print("no cmdline args")
+        if len(sys.argv) < 3:
+            logger.warning("no cmdline args")
             return False
         args = sys.argv
-    elif len(args) < 2:
-        print("less main args")
+    elif len(args) < 3:
+        logger.warning("less main args")
         return False
-    print(args)
 
-    serialno = args[1]
-    device = "Android:///%s" % serialno
+    for i in range(len(args)):
+        logger.warning("m8tdbg: args[%d]=%s", i, args[i])
+
+    pattern = re.compile(r'android://', re.IGNORECASE)
+    if pattern.match(args[2]):
+        head = args[2].find('/', 10)
+        tail = -1
+        if head > 0:
+            tail = args[2].find('?', head)
+            if tail > 0:
+                serialno = args[2][head+1:tail]
+            else:
+                serialno = args[2][head+1:]
+        else:
+            serialno = args[2][10:]
+        logger.warning("m8tdbg: head=%d", head)
+        logger.warning("m8tdbg: tail=%d", tail)
+        device = args[2]
+    else:
+        serialno = args[2]
+        device = "android:///%s" % serialno
+
+    logger.warning("m8tdbg: serialno=%s", serialno)
+    logger.warning("m8tdbg: device=%s", device)
 
     # auto_setup(__file__,devices=[device],logdir=True,compress=90)
     auto_setup(basedir=os.path.dirname(os.path.abspath(__file__)),
@@ -183,9 +205,9 @@ def main(args=None):
         height = G.DEVICE.display_info['height']
         width = G.DEVICE.display_info['width']
 
-    logger.warning("m8tdbg +++++++++++++++++++++++++++++++++")
-    logger.warning("m8tdbg orientation %d width %d height %d" % (orientation, width, height))
-    logger.warning("m8tdbg =================================")
+    logger.warning("m8tdbg: +++++++++++++++++++++++++++++++++")
+    logger.warning("m8tdbg: orientation %d width %d height %d" % (orientation, width, height))
+    logger.warning("m8tdbg: =================================")
     logger.warning("go back HOME!")
 
     home()
@@ -201,4 +223,17 @@ if __name__ == '__main__':
     config = read_task_conf(conf_file)
     config = update_task_conf(conf_file, config)
 
-    main(sys.argv)
+    args = []
+    args.append(__file__)
+    for i in range(len(sys.argv)):
+        logger.warning("m8tdbg: argv[%d]=%s", i, sys.argv[i])
+        if sys.argv[i] == "--device":
+            if (i+1) < len(sys.argv):
+                args.append(sys.argv[i])
+                args.append(sys.argv[i+1])
+                break
+
+    if len(args) < 3:
+        logger.warning("m8tdbg: less cmd args")
+    else:
+        main(args)
